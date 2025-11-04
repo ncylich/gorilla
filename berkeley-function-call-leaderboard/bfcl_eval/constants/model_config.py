@@ -1136,6 +1136,18 @@ local_inference_model_map = {
         is_fc_model=False,
         underscore_to_dot=False,
     ),
+    "google/gemma-3-270m-it": ModelConfig(
+        model_name="google/gemma-3-270m-it",
+        display_name="Gemma-3-270m-it (Prompt)",
+        url="https://blog.google/technology/developers/gemma-3/",
+        org="Google",
+        license="gemma-terms-of-use",
+        model_handler=GemmaHandler,
+        input_price=None,
+        output_price=None,
+        is_fc_model=False,
+        underscore_to_dot=False,
+    ),
     "google/gemma-3-1b-it": ModelConfig(
         model_name="google/gemma-3-1b-it",
         display_name="Gemma-3-1b-it (Prompt)",

@@ -97,6 +97,7 @@ SUPPORTED_MODELS = [
     "kimi-k2-0905-preview-FC",
     "kimi-k2-0905-preview",
     "deepseek-ai/DeepSeek-R1",
+    "google/gemma-3-270m-it",
     "google/gemma-3-1b-it",
     "google/gemma-3-4b-it",
     "google/gemma-3-12b-it",
