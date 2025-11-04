@@ -56,34 +56,23 @@ class GemmaFCHandler(OSSHandler):
         Format prompt using Gemma's chat template with function calling.
 
         Format:
-        - Tools: <tools>[list of tool dicts]</tools> in system prompt
+        - Tools: <tools>[list of tool dicts]</tools> prepended to first user message
         - Tool calls: <tool_call>{"name": "...", "args": {...}}</tool_call>
         - Tool responses: <tool_response>{"name": "...", "result": {...}}</tool_response>
+
+        Note: Gemma 3 does NOT support the 'system' role. System instructions must be
+        prepended to the first user message as per official Gemma 3 documentation.
         """
         formatted_prompt = "<bos>"
 
-        # Add system message with tools if present
-        if len(function) > 0:
-            formatted_prompt += "<start_of_turn>system\n"
-
-            # Add existing system message if present
-            if messages[0]["role"] == "system":
-                formatted_prompt += messages[0]["content"] + "\n\n"
-
-            # Add tools definition
-            formatted_prompt += "<tools>\n"
-            formatted_prompt += json.dumps(function, indent=2)
-            formatted_prompt += "\n</tools><end_of_turn>\n"
-
-            # Skip system message in main loop
-            messages = messages[1:] if messages[0]["role"] == "system" else messages
-        else:
-            # No tools, just add system message if present
-            if messages[0]["role"] == "system":
-                formatted_prompt += f"<start_of_turn>system\n{messages[0]['content']}<end_of_turn>\n"
-                messages = messages[1:]
+        # Extract system message if present (will be prepended to first user message)
+        system_content = ""
+        if len(messages) > 0 and messages[0]["role"] == "system":
+            system_content = messages[0]["content"]
+            messages = messages[1:]  # Remove system message from list
 
         # Process conversation messages
+        is_first_user_message = True
         for message in messages:
             role = message["role"]
             content = message["content"]
@@ -94,6 +83,21 @@ class GemmaFCHandler(OSSHandler):
 
             if role in ["user", "model"]:
                 formatted_prompt += f"<start_of_turn>{role}\n"
+
+                # For first user message: prepend system instructions and tools
+                if role == "user" and is_first_user_message:
+                    is_first_user_message = False
+
+                    # Add system instructions if present
+                    if system_content:
+                        formatted_prompt += system_content + "\n\n"
+
+                    # Add tools definition if functions are provided
+                    if len(function) > 0:
+                        formatted_prompt += "Here are the available tools that you can use:\n"
+                        formatted_prompt += "<tools>\n"
+                        formatted_prompt += json.dumps(function, indent=2)
+                        formatted_prompt += "\n</tools>\n\n"
 
                 # Add regular content
                 if content:
@@ -117,9 +121,25 @@ class GemmaFCHandler(OSSHandler):
                 formatted_prompt += "<end_of_turn>\n"
 
             elif role == "tool":
-                # Tool responses come as user messages
-                formatted_prompt += f"<start_of_turn>user\n"
-                formatted_prompt += f"<tool_response>\n{content}\n</tool_response>"
+                # Tool responses come as user messages with JSON format
+                formatted_prompt += "<start_of_turn>user\n"
+
+                # Parse the execution result (content) - it's already a string
+                # Try to parse it as JSON, otherwise use it as-is
+                try:
+                    result_data = json.loads(content)
+                except (json.JSONDecodeError, TypeError):
+                    result_data = content
+
+                # Format tool response with name and result fields per PLAN.md
+                tool_response = {
+                    "name": message.get("name", ""),
+                    "result": result_data
+                }
+
+                formatted_prompt += "<tool_response>\n"
+                formatted_prompt += json.dumps(tool_response)
+                formatted_prompt += "\n</tool_response>"
                 formatted_prompt += "<end_of_turn>\n"
 
         # Add generation prompt
@@ -181,6 +201,7 @@ class GemmaFCHandler(OSSHandler):
             try:
                 tool_call = json.loads(match)
                 result.append(tool_call)
-            except Exception as e:
+            except Exception:
+                # Skip malformed JSON
                 pass
         return result
