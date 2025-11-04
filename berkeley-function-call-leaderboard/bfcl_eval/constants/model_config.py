@@ -38,6 +38,7 @@ from bfcl_eval.model_handler.local_inference.deepseek_reasoning import (
 )
 from bfcl_eval.model_handler.local_inference.falcon_fc import Falcon3FCHandler
 from bfcl_eval.model_handler.local_inference.gemma import GemmaHandler
+from bfcl_eval.model_handler.local_inference.gemma_fc import GemmaFCHandler
 from bfcl_eval.model_handler.local_inference.glm import GLMHandler
 from bfcl_eval.model_handler.local_inference.granite import (
     GraniteFunctionCallingHandler,
@@ -1146,6 +1147,18 @@ local_inference_model_map = {
         input_price=None,
         output_price=None,
         is_fc_model=False,
+        underscore_to_dot=False,
+    ),
+    "google/gemma-3-270m-it-FC": ModelConfig(
+        model_name="google/gemma-3-270m-it",
+        display_name="Gemma-3-270m-it (FC)",
+        url="https://blog.google/technology/developers/gemma-3/",
+        org="Custom Fine-Tune",
+        license="gemma-terms-of-use",
+        model_handler=GemmaFCHandler,
+        input_price=None,
+        output_price=None,
+        is_fc_model=True,
         underscore_to_dot=False,
     ),
     "google/gemma-3-1b-it": ModelConfig(
