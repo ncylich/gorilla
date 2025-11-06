@@ -1150,7 +1150,7 @@ local_inference_model_map = {
         underscore_to_dot=False,
     ),
     "google/gemma-3-270m-it-FC": ModelConfig(
-        model_name="google/gemma-3-270m-it",
+        model_name="google/gemma-3-270m-it-FC",
         display_name="Gemma-3-270m-it (FC)",
         url="https://blog.google/technology/developers/gemma-3/",
         org="Custom Fine-Tune",
