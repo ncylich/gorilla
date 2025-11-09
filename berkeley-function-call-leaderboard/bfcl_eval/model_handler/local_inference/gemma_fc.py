@@ -122,12 +122,12 @@ class GemmaFCHandler(OSSHandler):
                         if "function" in tool_call:
                             tool_call = tool_call["function"]
 
-                        formatted_prompt += '<tool_call>\n'
+                        formatted_prompt += '<tool_call>'
                         formatted_prompt += json.dumps({
                             "name": tool_call["name"],
                             "args": tool_call.get("arguments", tool_call.get("args", {}))
-                        })
-                        formatted_prompt += '\n</tool_call>\n'
+                        }, separators=(',', ':'))
+                        formatted_prompt += '</tool_call>\n'
 
                 formatted_prompt += "<end_of_turn>\n"
 
@@ -148,9 +148,9 @@ class GemmaFCHandler(OSSHandler):
                     "result": result_data
                 }
 
-                formatted_prompt += "<tool_response>\n"
-                formatted_prompt += json.dumps(tool_response)
-                formatted_prompt += "\n</tool_response>"
+                formatted_prompt += "<tool_response>"
+                formatted_prompt += json.dumps(tool_response, separators=(',', ':'))
+                formatted_prompt += "</tool_response>"
                 formatted_prompt += "<end_of_turn>\n"
 
         # Add generation prompt
