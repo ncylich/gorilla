@@ -22,24 +22,34 @@ def main():
     print(f"Reading from {debug_file}...")
     print("=" * 80)
 
-    prompts = []
-    responses = []
+    prompts = {}
+    responses = {}
 
     with open(debug_file, "r") as f:
         for line in f:
             entry = json.loads(line)
+            prompt_id = entry.get("prompt_id")
             if "formatted_prompt" in entry:
-                prompts.append(entry)
+                prompts[prompt_id] = entry
             elif "model_response" in entry:
-                responses.append(entry)
+                responses[prompt_id] = entry
 
     print(f"\nFound {len(prompts)} prompts and {len(responses)} responses")
     print("=" * 80)
 
-    # Match prompts with responses
-    for i in range(min(len(prompts), len(responses))):
-        prompt = prompts[i]
-        response = responses[i]
+    # Match prompts with responses by prompt_id
+    matched_pairs = []
+    for prompt_id in sorted(prompts.keys()):
+        if prompt_id in responses:
+            matched_pairs.append((prompts[prompt_id], responses[prompt_id]))
+        else:
+            print(f"⚠️  Warning: No response found for prompt_id {prompt_id}")
+
+    print(f"Matched {len(matched_pairs)} prompt-response pairs")
+    print("=" * 80)
+
+    # Display matched pairs
+    for i, (prompt, response) in enumerate(matched_pairs):
 
         print(f"\n{'=' * 80}")
         print(f"Test ID: {prompt.get('test_id', 'unknown')}")
@@ -59,13 +69,13 @@ def main():
         print("\n" + "=" * 80)
 
         # Ask if user wants to continue
-        if i < len(prompts) - 1:
+        if i < len(matched_pairs) - 1:
             user_input = input("\nPress Enter to see next example, 'q' to quit, or a number to jump to that test: ")
             if user_input.lower() == 'q':
                 break
             elif user_input.isdigit():
                 target_idx = int(user_input)
-                if 0 <= target_idx < len(prompts):
+                if 0 <= target_idx < len(matched_pairs):
                     i = target_idx - 1  # Will be incremented in next iteration
                     continue
 
@@ -74,21 +84,23 @@ def main():
     print("SUMMARY")
     print("=" * 80)
 
-    if responses:
-        total_input_tokens = sum(r["input_tokens"] for r in responses)
-        total_output_tokens = sum(r["output_tokens"] for r in responses)
-        avg_input_tokens = total_input_tokens / len(responses)
-        avg_output_tokens = total_output_tokens / len(responses)
-        avg_response_length = sum(r["response_length"] for r in responses) / len(responses)
+    if matched_pairs:
+        response_list = [r for _, r in matched_pairs]
+        total_input_tokens = sum(r["input_tokens"] for r in response_list)
+        total_output_tokens = sum(r["output_tokens"] for r in response_list)
+        avg_input_tokens = total_input_tokens / len(response_list)
+        avg_output_tokens = total_output_tokens / len(response_list)
+        avg_response_length = sum(r["response_length"] for r in response_list) / len(response_list)
 
         print(f"Total prompts: {len(prompts)}")
         print(f"Total responses: {len(responses)}")
+        print(f"Matched pairs: {len(matched_pairs)}")
         print(f"Average input tokens: {avg_input_tokens:.1f}")
         print(f"Average output tokens: {avg_output_tokens:.1f}")
         print(f"Average response length: {avg_response_length:.1f} characters")
 
         # Find potential issues
-        long_responses = [r for r in responses if r["response_length"] > 2000]
+        long_responses = [r for r in response_list if r["response_length"] > 2000]
         if long_responses:
             print(f"\n⚠️  Found {len(long_responses)} responses longer than 2000 characters")
             print("These might indicate gibberish generation:")
