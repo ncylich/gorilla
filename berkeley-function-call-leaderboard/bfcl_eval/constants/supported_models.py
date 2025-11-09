@@ -100,6 +100,7 @@ SUPPORTED_MODELS = [
     "google/gemma-3-270m-it",
     "google/gemma-3-270m-it-FC",
     "google/gemma-3-1b-it",
+    "google/gemma-3-1b-it-FC",
     "google/gemma-3-4b-it",
     "google/gemma-3-12b-it",
     "google/gemma-3-27b-it",
