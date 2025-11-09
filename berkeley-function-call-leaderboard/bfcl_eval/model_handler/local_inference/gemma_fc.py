@@ -106,9 +106,9 @@ class GemmaFCHandler(OSSHandler):
                     # Add tools definition if functions are provided
                     if len(function) > 0:
                         formatted_prompt += "Here are the available tools that you can use:\n"
-                        formatted_prompt += "<tools>[\n"
+                        formatted_prompt += "<tools>\n"
                         formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in function)
-                        formatted_prompt += "\n]</tools>\n\n"
+                        formatted_prompt += "\n</tools>\n\n"
 
                 # Add regular content
                 if content:
@@ -122,13 +122,15 @@ class GemmaFCHandler(OSSHandler):
                         if "function" in tool_call:
                             tool_call = tool_call["function"]
 
-                        formatted_prompt += '<tool_call>'
+                        formatted_prompt += '<tool_call>\n'
                         formatted_prompt += json.dumps({
                             "name": tool_call["name"],
                             "args": tool_call.get("arguments", tool_call.get("args", {}))
                         }, separators=(',', ':'))
-                        formatted_prompt += '</tool_call>\n'
-
+                        formatted_prompt += '\n</tool_call>\n'
+                    assert formatted_prompt.endswith('\n')
+                    formatted_prompt = formatted_prompt[:-1]  # Remove last newline
+                
                 formatted_prompt += "<end_of_turn>\n"
 
             elif role == "tool":
@@ -148,9 +150,9 @@ class GemmaFCHandler(OSSHandler):
                     "result": result_data
                 }
 
-                formatted_prompt += "<tool_response>"
+                formatted_prompt += "<tool_response>\n"
                 formatted_prompt += json.dumps(tool_response, separators=(',', ':'))
-                formatted_prompt += "</tool_response>\n"
+                formatted_prompt += "\n</tool_response>"
                 formatted_prompt += "<end_of_turn>\n"
 
         # Add generation prompt
