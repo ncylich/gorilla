@@ -106,9 +106,9 @@ class GemmaFCHandler(OSSHandler):
                     # Add tools definition if functions are provided
                     if len(function) > 0:
                         formatted_prompt += "Here are the available tools that you can use:\n"
-                        formatted_prompt += "<tools>\n"
-                        formatted_prompt += json.dumps(function, indent=2)
-                        formatted_prompt += "\n</tools>\n\n"
+                        formatted_prompt += "<tools>[\n"
+                        formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in function)
+                        formatted_prompt += "\n]</tools>\n\n"
 
                 # Add regular content
                 if content:
@@ -150,7 +150,7 @@ class GemmaFCHandler(OSSHandler):
 
                 formatted_prompt += "<tool_response>"
                 formatted_prompt += json.dumps(tool_response, separators=(',', ':'))
-                formatted_prompt += "</tool_response>"
+                formatted_prompt += "</tool_response>\n"
                 formatted_prompt += "<end_of_turn>\n"
 
         # Add generation prompt
