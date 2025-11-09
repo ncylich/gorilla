@@ -110,7 +110,7 @@ You can make multiple tool calls, but only use tools when necessary.
 
                     # Add tools definition if functions are provided
                     if len(function) > 0:
-                        formatted_prompt += self.SYSTEM_PROMPT
+                        # formatted_prompt += self.SYSTEM_PROMPT
                         formatted_prompt += "Here are the available tools that you can use:\n"
                         formatted_prompt += "<tools>\n"
                         formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in function)
