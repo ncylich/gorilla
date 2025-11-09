@@ -16,7 +16,7 @@ class GemmaFCHandler(OSSHandler):
     """
 
     SYSTEM_PROMPT = """To get data you don't have access to, you may use the appropriate tools:
-1. Call the tool with <tool_call>{"name": "...", "args": {...}}</tool_call>
+1. Call the tool with <tool_call>{"name": "...", "parameters": {...}}</tool_call>
 2. You will receive tool results as: <tool_response>{"name": "...", "result": ...}</tool_response>
 3. Use the result to answer the user's question.
 You can make multiple tool calls, but only use tools when necessary.
@@ -41,12 +41,12 @@ You can make multiple tool calls, but only use tools when necessary.
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
         # Model response format:
-        # "<tool_call>\n{\"name\": \"function_name\", \"args\": {...}}\n</tool_call>"
+        # "<tool_call>\n{\"name\": \"function_name\", \"parameters\": {...}}\n</tool_call>"
         tool_calls = self._extract_tool_calls(result)
         if type(tool_calls) != list or any(type(item) != dict for item in tool_calls):
             raise ValueError(f"Model did not return a list of function calls: {result}")
         return [
-            {call["name"]: {k: v for k, v in call["args"].items()}}
+            {call["name"]: {k: v for k, v in call["parameters"].items()}}
             for call in tool_calls
         ]
 
@@ -57,9 +57,7 @@ You can make multiple tool calls, but only use tools when necessary.
             raise ValueError(f"Model did not return a list of function calls: {result}")
         decoded_result = []
         for item in tool_calls:
-            if type(item) == str:
-                item = eval(item)
-            decoded_result.append({item["name"]: item["args"]})
+            decoded_result.append({item["name"]: item["parameters"]})
         return convert_to_function_call(decoded_result)
 
     @override
@@ -69,7 +67,7 @@ You can make multiple tool calls, but only use tools when necessary.
 
         Format:
         - Tools: <tools>[list of tool dicts]</tools> prepended to first user message
-        - Tool calls: <tool_call>{"name": "...", "args": {...}}</tool_call>
+        - Tool calls: <tool_call>{"name": "...", "parameters": {...}}</tool_call>
         - Tool responses: <tool_response>{"name": "...", "result": {...}}</tool_response>
 
         Note: Gemma 3 does NOT support the 'system' role. System instructions must be
@@ -133,7 +131,7 @@ You can make multiple tool calls, but only use tools when necessary.
                         formatted_prompt += '<tool_call>\n'
                         formatted_prompt += json.dumps({
                             "name": tool_call["name"],
-                            "args": tool_call.get("arguments", tool_call.get("args", {}))
+                            "parameters": tool_call.get("parameters", tool_call.get("arguments", tool_call.get("args", {})))
                         }, separators=(',', ':'))
                         formatted_prompt += '\n</tool_call>\n'
                     assert formatted_prompt.endswith('\n')
