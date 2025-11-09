@@ -1,6 +1,7 @@
 import json
 import re
 from typing import Any
+from pathlib import Path
 
 from bfcl_eval.model_handler.local_inference.base_oss_handler import OSSHandler
 from bfcl_eval.model_handler.utils import convert_to_function_call
@@ -25,6 +26,10 @@ class GemmaFCHandler(OSSHandler):
     ) -> None:
         super().__init__(model_name, temperature, registry_name, is_fc_model, **kwargs)
         self.model_name_huggingface = model_name
+
+        # Create debug log file
+        self.debug_log_path = Path("gemma_fc_debug_prompts.jsonl")
+        self.prompt_counter = 0
 
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
@@ -63,6 +68,12 @@ class GemmaFCHandler(OSSHandler):
         Note: Gemma 3 does NOT support the 'system' role. System instructions must be
         prepended to the first user message as per official Gemma 3 documentation.
         """
+        print("\n" + "="*80)
+        print("DEBUG: _format_prompt called")
+        print(f"Messages: {json.dumps(messages, indent=2)}")
+        print(f"Functions: {json.dumps(function, indent=2)}")
+        print("="*80 + "\n")
+
         formatted_prompt = "<bos>"
 
         # Extract system message if present (will be prepended to first user message)
@@ -144,17 +155,58 @@ class GemmaFCHandler(OSSHandler):
 
         # Add generation prompt
         formatted_prompt += "<start_of_turn>model\n"
+
+        print("\n" + "="*80)
+        print("DEBUG: Final formatted prompt:")
+        print(formatted_prompt)
+        print("="*80 + "\n")
+
+        # Save to debug log file
+        self.prompt_counter += 1
+        debug_entry = {
+            "prompt_id": self.prompt_counter,
+            "test_id": getattr(self, "current_test_id", "unknown"),
+            "messages": messages,
+            "functions": function,
+            "formatted_prompt": formatted_prompt
+        }
+
+        with open(self.debug_log_path, "a") as f:
+            f.write(json.dumps(debug_entry) + "\n")
+
         return formatted_prompt
 
     @override
     def _pre_query_processing_prompting(self, test_entry: dict) -> dict:
         functions: list = test_entry["function"]
+        # Store test_entry ID for debugging
+        self.current_test_id = test_entry.get("id", "unknown")
         # FC models use their own system prompt, so no need to add messages
         return {"message": [], "function": functions}
 
     @override
     def _parse_query_response_prompting(self, api_response: Any) -> dict:
         model_response = api_response.choices[0].text
+
+        print("\n" + "="*80)
+        print("DEBUG: Model response received:")
+        print(f"Response text: {model_response}")
+        print(f"Response length: {len(model_response)} characters")
+        print("="*80 + "\n")
+
+        # Log the response to the debug file
+        response_entry = {
+            "prompt_id": self.prompt_counter,
+            "test_id": getattr(self, "current_test_id", "unknown"),
+            "model_response": model_response,
+            "response_length": len(model_response),
+            "input_tokens": api_response.usage.prompt_tokens,
+            "output_tokens": api_response.usage.completion_tokens
+        }
+
+        with open(self.debug_log_path, "a") as f:
+            f.write(json.dumps(response_entry) + "\n")
+
         extracted_tool_calls = self._extract_tool_calls(model_response)
 
         # Remove tool call XML from display text
