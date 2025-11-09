@@ -15,6 +15,13 @@ class GemmaFCHandler(OSSHandler):
     with Gemma's chat template (<start_of_turn>...<end_of_turn>).
     """
 
+    SYSTEM_PROMPT = """To get data you don't have access to, you may use the appropriate tools:
+1. Call the tool with <tool_call>{"name": "...", "args": {...}}</tool_call>
+2. You will receive tool results as: <tool_response>{"name": "...", "result": ...}</tool_response>
+3. Use the result to answer the user's question.
+You can make multiple tool calls, but only use tools when necessary.
+"""
+
     def __init__(
         self,
         model_name,
@@ -105,6 +112,7 @@ class GemmaFCHandler(OSSHandler):
 
                     # Add tools definition if functions are provided
                     if len(function) > 0:
+                        formatted_prompt += self.SYSTEM_PROMPT
                         formatted_prompt += "Here are the available tools that you can use:\n"
                         formatted_prompt += "<tools>\n"
                         formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in function)
