@@ -371,12 +371,12 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         if hasattr(self, "skip_special_tokens"):
             extra_body["skip_special_tokens"] = self.skip_special_tokens
 
-        # Custom generation parameters for Gemma 3 FC models
-        model_name_lower = self.model_name.lower()
-        if "gemma-3" in model_name_lower and model_name_lower.endswith("-fc"):
-            self.temperature = 1.0
-            extra_body["top_p"] = 0.95
-            extra_body["top_k"] = 64
+        # # Custom generation parameters for Gemma 3 FC models
+        # model_name_lower = self.model_name.lower()
+        # if "gemma-3" in model_name_lower and model_name_lower.endswith("-fc"):
+        #     self.temperature = 1.0
+        #     extra_body["top_p"] = 0.95
+        #     extra_body["top_k"] = 64
 
         start_time = time.time()
         if len(extra_body) > 0:

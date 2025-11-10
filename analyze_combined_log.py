@@ -88,11 +88,10 @@ def main():
 
         # Check for empty responses
         empty_responses = [e for e in entries if not e.get("model_response", "").strip()]
+        empty_percentage = 100 * len(empty_responses) / len(entries)
+        print(f"\nEmpty responses: {len(empty_responses)} ({empty_percentage:.1f}%)")
         if empty_responses:
-            print(
-                f"\n⚠️  Found {len(empty_responses)} empty responses ({100*len(empty_responses)/len(entries):.1f}%)"
-            )
-            print("Sample test IDs with empty responses:")
+            print("⚠️  Sample test IDs with empty responses:")
             for e in empty_responses[:5]:
                 print(f"  - {e.get('test_id', 'unknown')}")
 
