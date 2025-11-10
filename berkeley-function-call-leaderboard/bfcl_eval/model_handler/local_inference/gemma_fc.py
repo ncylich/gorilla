@@ -168,25 +168,21 @@ You can make multiple tool calls, but only use tools when necessary.
 
         extracted_tool_calls = self._extract_tool_calls(model_response)
 
-        # Remove tool call XML from display text
-        cleaned_response = model_response
-        for match in re.finditer(r"<tool_call>.*?</tool_call>", model_response, re.DOTALL):
-            cleaned_response = cleaned_response.replace(match.group(0), "").strip()
-
         if len(extracted_tool_calls) > 0:
             model_responses_message_for_chat_history = {
                 "role": "assistant",
-                "content": cleaned_response if cleaned_response else "",
+                "content": model_response if model_response else "",
                 "tool_calls": extracted_tool_calls,
             }
         else:
             model_responses_message_for_chat_history = {
                 "role": "assistant",
-                "content": cleaned_response,
+                "content": model_response,
             }
 
+        # Return RAW response for BFCL evaluation, not cleaned version
         return {
-            "model_responses": cleaned_response,
+            "model_responses": model_response,  # Raw response with tool calls intact
             "model_responses_message_for_chat_history": model_responses_message_for_chat_history,
             "input_token": api_response.usage.prompt_tokens,
             "output_token": api_response.usage.completion_tokens,
