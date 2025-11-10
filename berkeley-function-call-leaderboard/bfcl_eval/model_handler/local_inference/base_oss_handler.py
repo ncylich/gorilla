@@ -76,6 +76,10 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         )
 
         api_response, query_latency = self._query_prompting(inference_data)
+
+        # Save RAW model response for debug log (before cleaning/parsing)
+        raw_model_response = api_response.choices[0].text
+
         model_response_data = self._parse_query_response_prompting(api_response)
 
         # Process the metadata
@@ -97,10 +101,10 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         ):
             metadata["reasoning_content"] = model_response_data["reasoning_content"]
 
-        # Extract data for debug logging - inference_data is available!
+        # Extract data for debug logging - use RAW response with tool calls intact
         test_id = test_entry["id"]
         formatted_prompt = inference_data.get("inference_input_log", {}).get("formatted_prompt", "")
-        model_response = model_response_data["model_responses"]
+        model_response = raw_model_response  # Use raw response, not cleaned version
         input_tokens = metadata["input_token_count"]
         output_tokens = metadata["output_token_count"]
 
