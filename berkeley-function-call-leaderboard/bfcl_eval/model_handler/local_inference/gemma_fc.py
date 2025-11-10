@@ -21,6 +21,27 @@ class GemmaFCHandler(OSSHandler):
 You can make multiple tool calls, but only use tools when necessary.
 """
 
+    @staticmethod
+    def _convert_to_toucan_format(tool):
+        """
+        Convert BFCL flat format to Toucan nested format.
+
+        BFCL format:
+          {"name": "...", "description": "...", "parameters": {...}}
+
+        Toucan format:
+          {"type": "function", "function": {"name": "...", "description": "...", "parameters": {...}}}
+        """
+        # If already in nested format, return as-is
+        if "type" in tool and "function" in tool:
+            return tool
+
+        # Convert flat to nested
+        return {
+            "type": "function",
+            "function": tool
+        }
+
     def __init__(
         self,
         model_name,
@@ -103,7 +124,9 @@ You can make multiple tool calls, but only use tools when necessary.
                         # formatted_prompt += self.SYSTEM_PROMPT
                         formatted_prompt += "Here are the available tools that you can use:\n"
                         formatted_prompt += "<tools>\n"
-                        formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in function)
+                        # Convert BFCL flat format to Toucan nested format
+                        toucan_tools = [self._convert_to_toucan_format(tool) for tool in function]
+                        formatted_prompt += '\n'.join(json.dumps(tool, separators=(',', ':')) for tool in toucan_tools)
                         formatted_prompt += "\n</tools>\n\n"
 
                 # Add regular content
