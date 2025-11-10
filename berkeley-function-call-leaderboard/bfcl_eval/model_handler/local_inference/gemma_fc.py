@@ -27,6 +27,9 @@ You can make multiple tool calls, but only use tools when necessary.
     _debug_lock = threading.Lock()
     _debug_log_path = Path("gemma_fc_debug_prompts.jsonl")
 
+    # Thread-local storage for prompt data (each thread gets its own storage)
+    _thread_local = threading.local()
+
     def __init__(
         self,
         model_name,
@@ -38,9 +41,6 @@ You can make multiple tool calls, but only use tools when necessary.
     ) -> None:
         super().__init__(model_name, temperature, registry_name, is_fc_model, **kwargs)
         self.model_name_huggingface = model_name
-
-        # Instance-level storage for current inference
-        self._current_log_entry = {}
 
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
@@ -163,8 +163,8 @@ You can make multiple tool calls, but only use tools when necessary.
         # Add generation prompt
         formatted_prompt += "<start_of_turn>model\n"
 
-        # Store prompt data for later combination with response
-        self._current_log_entry = {
+        # Store prompt data in thread-local storage for later combination with response
+        self._thread_local.current_log_entry = {
             "test_id": getattr(self, "current_test_id", "unknown"),
             "messages": messages,
             "functions": function,
@@ -185,9 +185,10 @@ You can make multiple tool calls, but only use tools when necessary.
     def _parse_query_response_prompting(self, api_response: Any) -> dict:
         model_response = api_response.choices[0].text
 
-        # Combine prompt and response data
+        # Retrieve prompt data from thread-local storage and combine with response
+        current_log_entry = getattr(self._thread_local, "current_log_entry", {})
         complete_entry = {
-            **self._current_log_entry,  # Contains test_id, messages, functions, formatted_prompt
+            **current_log_entry,  # Contains test_id, messages, functions, formatted_prompt
             "model_response": model_response,
             "response_length": len(model_response),
             "input_tokens": api_response.usage.prompt_tokens,
