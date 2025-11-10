@@ -69,15 +69,40 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         self, test_entry: dict, include_input_log: bool
     ) -> tuple[any, dict]:
         """Override to add debug logging with access to both prompt and response."""
-        # Call parent implementation to get the result
-        result, metadata = super().inference_single_turn_prompting(test_entry, include_input_log)
+        # Duplicate parent logic to capture inference_data
+        inference_data: dict = self._pre_query_processing_prompting(test_entry)
+        inference_data = self.add_first_turn_message_prompting(
+            inference_data, test_entry["question"][0]
+        )
 
-        # Extract data for debug logging - everything is available here!
+        api_response, query_latency = self._query_prompting(inference_data)
+        model_response_data = self._parse_query_response_prompting(api_response)
+
+        # Process the metadata
+        metadata = {}
+        if include_input_log:
+            metadata["inference_log"] = [
+                {
+                    "role": "inference_input",
+                    "content": inference_data.get("inference_input_log", ""),
+                }
+            ]
+        metadata["input_token_count"] = model_response_data["input_token"]
+        metadata["output_token_count"] = model_response_data["output_token"]
+        metadata["latency"] = query_latency
+
+        if (
+            "reasoning_content" in model_response_data
+            and model_response_data["reasoning_content"] != ""
+        ):
+            metadata["reasoning_content"] = model_response_data["reasoning_content"]
+
+        # Extract data for debug logging - inference_data is available!
         test_id = test_entry["id"]
-        formatted_prompt = metadata.get("inference_log", [{}])[0].get("content", {}).get("formatted_prompt", "") if include_input_log else ""
-        model_response = result
-        input_tokens = metadata.get("input_token_count", 0)
-        output_tokens = metadata.get("output_token_count", 0)
+        formatted_prompt = inference_data.get("inference_input_log", {}).get("formatted_prompt", "")
+        model_response = model_response_data["model_responses"]
+        input_tokens = metadata["input_token_count"]
+        output_tokens = metadata["output_token_count"]
 
         # Create combined debug entry
         complete_entry = {
@@ -94,7 +119,7 @@ class OSSHandler(BaseHandler, EnforceOverrides):
             with open(self._debug_log_path, "a") as f:
                 f.write(json.dumps(complete_entry) + "\n")
 
-        return result, metadata
+        return model_response_data["model_responses"], metadata
 
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
