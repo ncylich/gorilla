@@ -370,23 +370,37 @@ class OSSHandler(BaseHandler, EnforceOverrides):
         if hasattr(self, "skip_special_tokens"):
             extra_body["skip_special_tokens"] = self.skip_special_tokens
 
+        # Custom generation parameters for Gemma 3 FC models
+        gen_params = {}
+        model_name_lower = self.model_name.lower()
+        if "gemma-3" in model_name_lower and model_name_lower.endswith("-fc"):
+            gen_params = {
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "top_k": 64,
+            }
+        else:
+            gen_params = {
+                "temperature": self.temperature,
+            }
+
         start_time = time.time()
         if len(extra_body) > 0:
             api_response = self.client.completions.create(
                 model=self.model_path_or_id,
-                temperature=self.temperature,
                 prompt=formatted_prompt,
                 max_tokens=leftover_tokens_count,
                 extra_body=extra_body,
                 timeout=72000,  # Avoid timeout errors
+                **gen_params,
             )
         else:
             api_response = self.client.completions.create(
                 model=self.model_path_or_id,
-                temperature=self.temperature,
                 prompt=formatted_prompt,
                 max_tokens=leftover_tokens_count,
                 timeout=72000,  # Avoid timeout errors
+                **gen_params,
             )
         end_time = time.time()
 
