@@ -1,8 +1,6 @@
 import json
 import re
-import threading
 from typing import Any
-from pathlib import Path
 
 from bfcl_eval.model_handler.local_inference.base_oss_handler import OSSHandler
 from bfcl_eval.model_handler.utils import convert_to_function_call
@@ -22,13 +20,6 @@ class GemmaFCHandler(OSSHandler):
 3. Use the result to answer the user's question.
 You can make multiple tool calls, but only use tools when necessary.
 """
-
-    # Class-level shared state for thread-safe file writing
-    _debug_lock = threading.Lock()
-    _debug_log_path = Path("gemma_fc_debug_prompts.jsonl")
-
-    # Thread-local storage for prompt data (each thread gets its own storage)
-    _thread_local = threading.local()
 
     def __init__(
         self,
@@ -163,42 +154,17 @@ You can make multiple tool calls, but only use tools when necessary.
         # Add generation prompt
         formatted_prompt += "<start_of_turn>model\n"
 
-        # Store prompt data in thread-local storage for later combination with response
-        self._thread_local.current_log_entry = {
-            "test_id": getattr(self, "current_test_id", "unknown"),
-            "messages": messages,
-            "functions": function,
-            "formatted_prompt": formatted_prompt
-        }
-
         return formatted_prompt
 
     @override
     def _pre_query_processing_prompting(self, test_entry: dict) -> dict:
         functions: list = test_entry["function"]
-        # Store test_entry ID for debugging
-        self.current_test_id = test_entry.get("id", "unknown")
         # FC models use their own system prompt, so no need to add messages
         return {"message": [], "function": functions}
 
     @override
     def _parse_query_response_prompting(self, api_response: Any) -> dict:
         model_response = api_response.choices[0].text
-
-        # Retrieve prompt data from thread-local storage and combine with response
-        current_log_entry = getattr(self._thread_local, "current_log_entry", {})
-        complete_entry = {
-            **current_log_entry,  # Contains test_id, messages, functions, formatted_prompt
-            "model_response": model_response,
-            "response_length": len(model_response),
-            "input_tokens": api_response.usage.prompt_tokens,
-            "output_tokens": api_response.usage.completion_tokens
-        }
-
-        # Thread-safe file write: lock only protects the file I/O
-        with self._debug_lock:
-            with open(self._debug_log_path, "a") as f:
-                f.write(json.dumps(complete_entry) + "\n")
 
         extracted_tool_calls = self._extract_tool_calls(model_response)
 

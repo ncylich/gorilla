@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import threading
@@ -20,6 +21,10 @@ from overrides import EnforceOverrides, final, override
 
 
 class OSSHandler(BaseHandler, EnforceOverrides):
+    # Class-level shared state for thread-safe debug logging
+    _debug_lock = threading.Lock()
+    _debug_log_path = Path("oss_model_debug_prompts.jsonl")
+
     def __init__(
         self,
         model_name,
@@ -59,6 +64,37 @@ class OSSHandler(BaseHandler, EnforceOverrides):
             )
         else:
             return self.inference_single_turn_prompting(test_entry, include_input_log)
+
+    def inference_single_turn_prompting(
+        self, test_entry: dict, include_input_log: bool
+    ) -> tuple[any, dict]:
+        """Override to add debug logging with access to both prompt and response."""
+        # Call parent implementation to get the result
+        result, metadata = super().inference_single_turn_prompting(test_entry, include_input_log)
+
+        # Extract data for debug logging - everything is available here!
+        test_id = test_entry["id"]
+        formatted_prompt = metadata.get("inference_log", [{}])[0].get("content", {}).get("formatted_prompt", "") if include_input_log else ""
+        model_response = result
+        input_tokens = metadata.get("input_token_count", 0)
+        output_tokens = metadata.get("output_token_count", 0)
+
+        # Create combined debug entry
+        complete_entry = {
+            "test_id": test_id,
+            "formatted_prompt": formatted_prompt,
+            "model_response": model_response,
+            "response_length": len(str(model_response)),
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens
+        }
+
+        # Thread-safe file write: lock only protects the file I/O
+        with self._debug_lock:
+            with open(self._debug_log_path, "a") as f:
+                f.write(json.dumps(complete_entry) + "\n")
+
+        return result, metadata
 
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
