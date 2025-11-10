@@ -10,11 +10,12 @@ from pathlib import Path
 
 
 def main():
-    debug_file = Path("gemma_fc_debug_prompts.jsonl")
+    debug_file = Path("oss_model_debug_prompts.jsonl")
 
     if not debug_file.exists():
         print(f"Error: {debug_file} not found.")
         print("Run the BFCL evaluation first to generate the debug log.")
+        print("The file should be in the directory where you ran the BFCL command.")
         sys.exit(1)
 
     print(f"Reading from {debug_file}...")
