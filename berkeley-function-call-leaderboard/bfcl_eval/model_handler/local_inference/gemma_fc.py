@@ -1,5 +1,6 @@
 import json
 import re
+import threading
 from typing import Any
 from pathlib import Path
 
@@ -22,6 +23,10 @@ class GemmaFCHandler(OSSHandler):
 You can make multiple tool calls, but only use tools when necessary.
 """
 
+    # Class-level shared state for thread-safe file writing
+    _debug_lock = threading.Lock()
+    _debug_log_path = Path("gemma_fc_debug_prompts.jsonl")
+
     def __init__(
         self,
         model_name,
@@ -34,9 +39,8 @@ You can make multiple tool calls, but only use tools when necessary.
         super().__init__(model_name, temperature, registry_name, is_fc_model, **kwargs)
         self.model_name_huggingface = model_name
 
-        # Create debug log file
-        self.debug_log_path = Path("gemma_fc_debug_prompts.jsonl")
-        self.prompt_counter = 0
+        # Instance-level storage for current inference
+        self._current_log_entry = {}
 
     @override
     def decode_ast(self, result, language, has_tool_call_tag):
@@ -73,11 +77,6 @@ You can make multiple tool calls, but only use tools when necessary.
         Note: Gemma 3 does NOT support the 'system' role. System instructions must be
         prepended to the first user message as per official Gemma 3 documentation.
         """
-        print("\n" + "="*80)
-        print("DEBUG: _format_prompt called")
-        print(f"Messages: {json.dumps(messages, indent=2)}")
-        print(f"Functions: {json.dumps(function, indent=2)}")
-        print("="*80 + "\n")
 
         formatted_prompt = "<bos>"
 
@@ -164,23 +163,13 @@ You can make multiple tool calls, but only use tools when necessary.
         # Add generation prompt
         formatted_prompt += "<start_of_turn>model\n"
 
-        print("\n" + "="*80)
-        print("DEBUG: Final formatted prompt:")
-        print(formatted_prompt)
-        print("="*80 + "\n")
-
-        # Save to debug log file
-        self.prompt_counter += 1
-        debug_entry = {
-            "prompt_id": self.prompt_counter,
+        # Store prompt data for later combination with response
+        self._current_log_entry = {
             "test_id": getattr(self, "current_test_id", "unknown"),
             "messages": messages,
             "functions": function,
             "formatted_prompt": formatted_prompt
         }
-
-        with open(self.debug_log_path, "a") as f:
-            f.write(json.dumps(debug_entry) + "\n")
 
         return formatted_prompt
 
@@ -196,24 +185,19 @@ You can make multiple tool calls, but only use tools when necessary.
     def _parse_query_response_prompting(self, api_response: Any) -> dict:
         model_response = api_response.choices[0].text
 
-        print("\n" + "="*80)
-        print("DEBUG: Model response received:")
-        print(f"Response text: {model_response}")
-        print(f"Response length: {len(model_response)} characters")
-        print("="*80 + "\n")
-
-        # Log the response to the debug file
-        response_entry = {
-            "prompt_id": self.prompt_counter,
-            "test_id": getattr(self, "current_test_id", "unknown"),
+        # Combine prompt and response data
+        complete_entry = {
+            **self._current_log_entry,  # Contains test_id, messages, functions, formatted_prompt
             "model_response": model_response,
             "response_length": len(model_response),
             "input_tokens": api_response.usage.prompt_tokens,
             "output_tokens": api_response.usage.completion_tokens
         }
 
-        with open(self.debug_log_path, "a") as f:
-            f.write(json.dumps(response_entry) + "\n")
+        # Thread-safe file write: lock only protects the file I/O
+        with self._debug_lock:
+            with open(self._debug_log_path, "a") as f:
+                f.write(json.dumps(complete_entry) + "\n")
 
         extracted_tool_calls = self._extract_tool_calls(model_response)
 
