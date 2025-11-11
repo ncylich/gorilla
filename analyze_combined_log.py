@@ -109,7 +109,7 @@ def main():
 
         # Check for tool calls
         responses_with_tool_calls = [
-            e for e in entries if "<tool_call>" in e.get("model_response", "")
+            e for e in entries if "<tool_call>" in e.get("model_response", "") or "```tool_call" in e.get("model_response", "")
         ]
         print(
             f"\n✓ {len(responses_with_tool_calls)} responses contain tool calls ({100*len(responses_with_tool_calls)/len(entries):.1f}%)"
